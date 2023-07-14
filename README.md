@@ -1,8 +1,6 @@
-# CwlogsIo
+# CWlogsIO
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/cwlogs_io`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+ruby IO-like streams which is connected to cloudwatch logs.
 
 ## Installation
 
@@ -16,7 +14,22 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+
+credentials = Aws::InstanceProfileCredentials.new
+credentials = Aws::SharedCredentials.new
+credentials = Aws::Credentials.new
+auth = {
+    region: 'ap-northeast-2'
+    credentials: Aws::InstanceProfileCredentials.new
+}
+
+log_group = 'foo'
+log_stream = 'bar'
+
+logger = Logger.new(CWlogsIO.new(auth, log_group, log_stream))
+logger.info('hello with CWlogsIO')
+```
 
 ## Development
 
@@ -26,7 +39,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/cwlogs_io.
+Bug reports and pull requests are welcome on GitHub at https://github.com/privatenote/cwlogs_io.
 
 ## License
 

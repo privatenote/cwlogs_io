@@ -42,4 +42,22 @@ RSpec.describe CWlogsIO do
 
     expect(all_messages.uniq.length).to eq(events_count_per_thread * thread_count)
   end
+
+  it 'write all messages even process is forked.' do
+    client = Aws::CloudWatchLogs::Client.new(stub_responses: true)
+    allow(Aws::CloudWatchLogs::Client).to receive(:new).and_return(client)
+
+    io = CWlogsIO.new({ region: 'region', credentials: Aws::Credentials.new('a', 'b') }, 'log_group', 'log_stream')
+
+    Process.fork do
+      io.write('message')
+      io.close
+
+      put_log_events_requests = client.api_requests.filter { |r| r[:operation_name] == :put_log_events }
+      params = put_log_events_requests.map { |r| r[:params] }
+      log_events = params.map { |p| p[:log_events] }
+
+      expect(log_events.length).to eq(1)
+    end
+  end
 end

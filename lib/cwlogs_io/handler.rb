@@ -8,18 +8,18 @@ module CWlogsIO
     TERMINATION_TIMEOUT_IN_SECONDS = 5
 
     def initialize(logger, polling_period = nil)
-      @executor = Concurrent::SingleThreadExecutor.new
+      @ppid = Process.ppid
       @queue = Queue.new
       @logger = logger
       @polling_period = polling_period || DEFAULT_POLLING_PERIOD_IN_SECONDS
 
-      @executor.post do
-        serve
-      end
+      initialize_executor
     end
 
     def enq(event)
       return if @queue.closed?
+
+      ensure_executor
 
       @queue << event
     end
@@ -32,12 +32,33 @@ module CWlogsIO
       return if @queue.closed?
 
       @queue.close
+
+      shutdown_executor
+    end
+
+    private
+
+    def initialize_executor
+      @executor = Concurrent::SingleThreadExecutor.new
+      @executor.post do
+        serve
+      end
+    end
+
+    def shutdown_executor
       @executor.shutdown
       @executor.wait_for_termination(TERMINATION_TIMEOUT_IN_SECONDS)
       @executor.kill unless @executor.shutdown?
     end
 
-    private
+    def ensure_executor
+      return if @ppid == Process.ppid
+
+      @ppid = Process.ppid
+
+      shutdown_executor
+      initialize_executor
+    end
 
     def serve
       @logger.info('ready to process')
@@ -49,6 +70,8 @@ module CWlogsIO
 
       handle_all unless @queue.empty?
       @logger.info('quitting...')
+    rescue Exception => e
+      @logger.error(e)
     end
 
     def pop_all_events

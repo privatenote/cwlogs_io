@@ -1,0 +1,5 @@
+align_case_when false
+align_chained_calls false
+parens_in_def :yes
+trailing_commas true
+quote_style :single

@@ -42,6 +42,10 @@ module CWlogsIO
       @log_stream = log_stream
       @handler = LogEventHandler.new(client, log_group, log_stream, logger)
       close if !ensure_log_group || !ensure_log_stream
+
+      at_exit do
+        close
+      end
     end
 
     def write(message)

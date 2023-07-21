@@ -81,7 +81,11 @@ module CWlogsIO
     end
 
     def handle_all
-      process_events(pop_all_events)
+      process_events(pop_all_events) unless @queue.empty?
+    end
+
+    def process_events(events)
+      raise NotImplementedError
     end
   end
 end

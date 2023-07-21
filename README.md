@@ -16,9 +16,6 @@ If bundler is not being used to manage dependencies, install the gem by executin
 
 ```ruby
 
-credentials = Aws::InstanceProfileCredentials.new
-credentials = Aws::SharedCredentials.new
-credentials = Aws::Credentials.new
 auth = {
     region: 'ap-northeast-2'
     credentials: Aws::InstanceProfileCredentials.new

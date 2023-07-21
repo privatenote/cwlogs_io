@@ -10,6 +10,14 @@ require_relative 'client'
 
 module CWlogsIO
   class LogEventHandler < Handler
+    # https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+    # The maximum batch size is 1,048,576 bytes, and this size is calculated as the sum of all event messages in UTF-8, plus 26 bytes for each log event.
+    # 26 bytes is the length of the JSON structure that surrounds the log event information:
+    # Each log event can be no larger than 256 KB.
+    # The maximum number of log events in a batch is 10,000
+    # When there are 100 events in one chunk, the average size of each event can be up to a maximum of 10kB.
+    EVENTS_PER_CHUNK = 100
+
     def initialize(client, log_group, log_stream, logger, polling_rate = nil)
       super(logger, polling_rate)
       @client = client
@@ -19,7 +27,7 @@ module CWlogsIO
 
     def process_events(events)
       events.sort_by!(&:timestamp)
-      Utils.chunks(events, 100).each do |event_chunk|
+      Utils.chunks(events, EVENTS_PER_CHUNK).each do |event_chunk|
         send_events(event_chunk)
       end
     end
@@ -35,6 +43,9 @@ module CWlogsIO
     end
   end
 
+  # ruby 'logger' compatible IO-like class.
+  # it should implement #write, #close method.
+  # https://github.com/ruby/logger/blob/master/lib/logger/log_device.rb
   class IO
     def initialize(auth, log_group, log_stream)
       @auth = auth

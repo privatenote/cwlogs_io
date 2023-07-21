@@ -51,7 +51,7 @@ module CWlogsIO
       @auth = auth
       @log_group = log_group
       @log_stream = log_stream
-      @handler = LogEventHandler.new(client, log_group, log_stream, logger)
+      @handler = HandlerWrapper.create(LogEventHandler, client, log_group, log_stream, logger)
       close if !ensure_log_group || !ensure_log_stream
 
       at_exit do

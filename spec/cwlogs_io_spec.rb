@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+def log_events(client)
+  put_log_events_requests = client.api_requests.filter { |r| r[:operation_name] == :put_log_events }
+  params = put_log_events_requests.map { |r| r[:params] }
+  params.map { |p| p[:log_events] }
+end
+
+def log_messages(client)
+  log_events(client).map do |events|
+    events.map do |event|
+      event[:message]
+    end
+  end.flatten
+end
+
 RSpec.describe CWlogsIO do
   it 'write all messages exactly once, and all messages in a api call have to be ordered in chronological order' do
     client = Aws::CloudWatchLogs::Client.new(stub_responses: true)
@@ -26,38 +40,50 @@ RSpec.describe CWlogsIO do
 
     io.close
 
-    put_log_events_requests = client.api_requests.filter { |r| r[:operation_name] == :put_log_events }
-    params = put_log_events_requests.map { |r| r[:params] }
-    log_events = params.map { |p| p[:log_events] }
-
-    log_events.each do |events|
+    log_events(client).each do |events|
       expect(events.map { |event| event[:timestamp] }).to be_monotonically_increasing
     end
 
-    all_messages = log_events.map do |events|
-      events.map do |event|
-        event[:message]
-      end
-    end.flatten
-
-    expect(all_messages.uniq.length).to eq(events_count_per_thread * thread_count)
+    expect(log_messages(client).uniq.length).to eq(events_count_per_thread * thread_count)
   end
 
-  it 'write all messages even process is forked.' do
-    client = Aws::CloudWatchLogs::Client.new(stub_responses: true)
-    allow(Aws::CloudWatchLogs::Client).to receive(:new).and_return(client)
+  describe 'HandlerManager#respawn_all' do
+    it 'write all messages even "fork" called' do
+      client = Aws::CloudWatchLogs::Client.new(stub_responses: true)
+      allow(Aws::CloudWatchLogs::Client).to receive(:new).and_return(client)
 
-    io = CWlogsIO.new({ region: 'region', credentials: Aws::Credentials.new('a', 'b') }, 'log_group', 'log_stream')
+      io = CWlogsIO.new({ region: 'region', credentials: Aws::Credentials.new('a', 'b') }, 'log_group', 'log_stream')
 
-    Process.fork do
-      io.write('message')
+      Process.fork do
+        CWlogsIO::HandlerManager.instance.respawn_all
+        io.write('message')
+        io.close
+
+        expect(log_events(client).length).to eq(1)
+      end
+    end
+
+    it 'messages requested before "fork" should be delivered by parent' do
+      client = Aws::CloudWatchLogs::Client.new(stub_responses: true)
+      allow(Aws::CloudWatchLogs::Client).to receive(:new).and_return(client)
+
+      io = CWlogsIO.new({ region: 'region', credentials: Aws::Credentials.new('a', 'b') }, 'log_group', 'log_stream')
+
+      count_of_event = 5000
+
+      count_of_event.times.each do |i|
+        io.write(i.to_s)
+      end
+
+      Process.fork do
+        CWlogsIO::HandlerManager.instance.respawn_all
+
+        io.close
+        expect(log_messages(client).length).to eq(0)
+      end
+
       io.close
-
-      put_log_events_requests = client.api_requests.filter { |r| r[:operation_name] == :put_log_events }
-      params = put_log_events_requests.map { |r| r[:params] }
-      log_events = params.map { |p| p[:log_events] }
-
-      expect(log_events.length).to eq(1)
+      expect(log_messages(client).length).to eq(count_of_event)
     end
   end
 end

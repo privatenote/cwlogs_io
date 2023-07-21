@@ -1,14 +1,60 @@
 # frozen_string_literal: true
 
+require 'set'
+require 'singleton'
 require 'concurrent/executor/single_thread_executor'
 
 module CWlogsIO
+  class HandlerWrapper
+    def initialize(handler)
+      @handler = handler
+    end
+
+    def self.create(handler_class, *params)
+      handler = HandlerWrapper.new(handler_class.new(*params))
+      HandlerManager.instance.register(handler)
+      handler
+    end
+
+    def close
+      @handler.close
+      HandlerManager.instance.deregister(self)
+    end
+
+    def method_missing(method, *params)
+      @handler.send(method, *params)
+    end
+
+    def respond_to_missing?(method, include_private = false)
+      @handler.respond_to?(method, include_private)
+    end
+  end
+
+  class HandlerManager
+    include Singleton
+
+    def initialize
+      @handlers = Set.new
+    end
+
+    def respawn_all
+      @handlers.each(&:respawn)
+    end
+
+    def register(handler)
+      @handlers << handler
+    end
+
+    def deregister(handler)
+      @handlers.delete(handler)
+    end
+  end
+
   class Handler
     DEFAULT_POLLING_PERIOD_IN_SECONDS = 1
     TERMINATION_TIMEOUT_IN_SECONDS = 5
 
     def initialize(logger, polling_period = nil)
-      @ppid = Process.ppid
       @queue = Queue.new
       @logger = logger
       @polling_period = polling_period || DEFAULT_POLLING_PERIOD_IN_SECONDS
@@ -17,9 +63,7 @@ module CWlogsIO
     end
 
     def enq(event)
-      return if @queue.closed?
-
-      ensure_executor
+      return if closed?
 
       @queue << event
     end
@@ -29,11 +73,24 @@ module CWlogsIO
     end
 
     def close
-      return if @queue.closed?
+      return if closed?
 
       @queue.close
 
       shutdown_executor
+    end
+
+    def closed?
+      @queue.closed?
+    end
+
+    # should be called in child process, not parent.
+    # or, you may lose some events.
+    def respawn
+      return if closed?
+
+      @queue.clear
+      initialize_executor
     end
 
     private
@@ -49,15 +106,6 @@ module CWlogsIO
       @executor.shutdown
       @executor.wait_for_termination(TERMINATION_TIMEOUT_IN_SECONDS)
       @executor.kill unless @executor.shutdown?
-    end
-
-    def ensure_executor
-      return if @ppid == Process.ppid
-
-      @ppid = Process.ppid
-
-      shutdown_executor
-      initialize_executor
     end
 
     def serve

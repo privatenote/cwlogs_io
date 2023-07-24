@@ -12,4 +12,36 @@ RSpec.configure do |config|
   config.expect_with :rspec do |c|
     c.syntax = :expect
   end
+
+  RSpec::Matchers.define :be_monotonically_increasing do
+    match do |actual|
+      derivative = actual.each_cons(2).map { |x, y| y <=> x }
+      derivative.all? { |v| v >= 0 }
+    end
+
+    failure_message do |actual|
+      "expected array #{actual.inspect} to be monotonically increasing"
+    end
+
+    failure_message_when_negated do |actual|
+      "expected array #{actual.inspect} to not be monotonically increasing"
+    end
+
+    description do
+      'be monotonically increasing'
+    end
+  end
+
+  original_stderr = $stderr
+  original_stdout = $stdout
+
+  config.before(:all) do
+    # Redirect stderr and stdout
+    $stderr = File.open(File::NULL, 'w')
+    $stdout = File.open(File::NULL, 'w')
+  end
+  config.after(:all) do
+    $stderr = original_stderr
+    $stdout = original_stdout
+  end
 end

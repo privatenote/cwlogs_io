@@ -4,7 +4,7 @@ require_relative 'lib/cwlogs_io/version'
 
 Gem::Specification.new do |spec|
   spec.name = 'cwlogs_io'
-  spec.version = CwlogsIo::VERSION
+  spec.version = CWlogsIO::VERSION
   spec.authors = ['Hyeonjun Lee']
   spec.email = ['hyeonjun.lee@privatenote.co.kr']
 
@@ -28,7 +28,10 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   # Uncomment to register a new dependency of your gem
-  # spec.add_dependency 'example-gem', '~> 1.0'
+  spec.add_dependency 'aws-sdk-cloudwatchlogs', '~> 1.69'
+  spec.add_dependency 'aws-sdk-core', '~> 3'
+  spec.add_dependency 'concurrent-ruby', '~> 1.2'
+  spec.add_dependency 'nokogiri', '~> 1.15'
 
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html

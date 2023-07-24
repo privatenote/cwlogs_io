@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
   # Uncomment to register a new dependency of your gem
   spec.add_dependency 'aws-sdk-cloudwatchlogs', '~> 1.69'
   spec.add_dependency 'aws-sdk-core', '~> 3'
-  spec.add_dependency 'concurrent-ruby', '~> 1.2'
+  spec.add_dependency 'concurrent-ruby', '~> 1.0'
   spec.add_dependency 'nokogiri', '~> 1.15'
 
   # For more information and examples about making a new gem, check out our

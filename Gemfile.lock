@@ -4,7 +4,7 @@ PATH
     cwlogs_io (0.1.0)
       aws-sdk-cloudwatchlogs (~> 1.69)
       aws-sdk-core (~> 3)
-      concurrent-ruby (~> 1.2)
+      concurrent-ruby (~> 1.0)
       nokogiri (~> 1.15)
 
 GEM
